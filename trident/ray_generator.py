@@ -519,6 +519,88 @@ def make_compound_ray(parameter_filename, simulation_type,
                              redshift=None, njobs=-1,
                              field_parameters = field_parameters)
 
+def make_extended_source(dataset_file, center, normal, radius,
+                           radial_profile=None, central_flux=1):
+    """
+    Create a circular extended source to act as a background for 
+    "down-the-barrel" spectra of extended continuous sources.
+
+    Specify the center, radius, and normal vector of the circle.  
+    Also, possibly describe a radial profile and central flux describing
+    its illumination pattern.
+    """
+    center_point = dataset_file.point(center)
+    dx = center_point[('gas', 'dx')]
+    disk = dataset_file.disk(center, normal, radius, dx)
+
+def make_extended_ray(dataset_file, start_position, extended_source,
+                    lines=None, ftype="gas", fields=None,
+                    solution_filename=None, data_filename=None,
+                    trajectory=None, redshift=None, field_parameters=None,
+                    setup_function=None, load_kwargs=None,
+                    line_database=None, ionization_table=None):
+    """
+    Placeholder for ray function
+    Create a "ray" for an extended background source.  
+    
+    start_position = point
+    extended_source = disk from make_extended_source
+    
+    """
+    if load_kwargs is None:
+        load_kwargs = {}
+    if fields is None:
+        fields = []
+    if data_filename is None:
+        data_filename = 'ray.h5'
+
+    if isinstance(dataset_file, str):
+        ds = load(dataset_file, **load_kwargs)
+    elif isinstance(dataset_file, Dataset):
+        ds = dataset_file
+
+    lr = LightRay(ds, load_kwargs=load_kwargs)
+
+    if ionization_table is None:
+        ionization_table = ion_table_filepath
+
+    # Include some default fields in the ray to assure it's processed correctly.
+
+    fields = _add_default_fields(ds, fields)
+
+    # If 'lines' kwarg is set, we need to get all the fields required to
+    # create the desired absorption lines in the grid format, since grid-based
+    # fields are what are directly probed by the LightRay object.
+
+    # We first determine what fields are necessary for the desired lines, and
+    # inspect the dataset to see if they already exist.  If so, we add them
+    # to the field list for the ray.  If not, we have to create them.
+
+    if lines is not None:
+
+        ion_list = _determine_ions_from_lines(line_database, lines)
+        fields = _determine_fields_from_ions(ds, ion_list, fields)
+
+    # To assure there are no fields that are double specified or that collide
+    # based on being specified as "density" as well as ("gas", "density"),
+    # we will just assume that all non-tuple fields requested are ftype "gas".
+    for i in range(len(fields)):
+        if isinstance(fields[i], str):
+            fields[i] = ('gas', fields[i])
+    fields = uniquify(fields)
+
+    return lr.make_light_ray(start_position=start_position,
+                             end_position=end_position,
+                             trajectory=trajectory,
+                             fields=fields,
+                             setup_function=setup_function,
+                             solution_filename=solution_filename,
+                             data_filename=data_filename,
+                             field_parameters=field_parameters,
+                             redshift=redshift)
+
+
+
 def _determine_ions_from_lines(line_database, lines):
     """
     Figure out what ions are necessary to produce the desired lines
