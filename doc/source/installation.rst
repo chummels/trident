@@ -220,7 +220,16 @@ Updating to the Latest Version
 ------------------------------
 
 If you want more recent features, you should periodically update your Trident
-codebase.
+codebase.  In particular, there were some important bugfixes for particle-based
+datasets included in :ref:`version 1.4 <changelog>`.
+
+You can check which version of the code you currently have::
+
+    $ python
+    >>> import trident
+    >>> print(trident.__version__)
+    >>> import yt
+    >>> print(yt.__version__)
 
 Updating to the Latest Stable Release
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
