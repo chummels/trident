@@ -72,5 +72,9 @@ from trident.roman import \
 from trident.light_ray import \
     LightRay
 
+from trident.emission_spectrum import \
+    add_emission_spectrum, \
+    calculate_emission_spectrum
+
 # Making installation path global
 path = trident_path()
