@@ -197,8 +197,8 @@ def _emission_line_field(field, data):
     n_parameters = len(table_store[field_name]['parameters'])
 
     if n_parameters == 3:
-        #line = table_store[field_name]['emission_spectra'][:,:,:,213] # 0 is the index of the desired line in spectra
-        line = table_store[field_name]['emission_spectra']
+        line = table_store[field_name]['emission_spectra'][:,:,:,213] # 0 is the index of the desired line in spectra
+        #line = table_store[field_name]['emission_spectra']
         n_param = table_store[field_name]['parameters'][0]
         t_param = table_store[field_name]['parameters'][1]
         Z_param = table_store[field_name]['parameters'][2]
@@ -213,20 +213,20 @@ def _emission_line_field(field, data):
     # x,y,z coordinates for all ion_fractions from table
     coords = (n_param, t_param, Z_param)
 
-    # Convert values from user into log space to match table
-    #dens = np.log10(density)
-    #temp = np.log10(temperature)
-    #metals = np.log10(metallicity)
-    arr = np.array([data[(ftype, 'log_nH')], data[(ftype, 'log_T')], data[(ftype, 'log_Z')]]).T
-    #import pdb; pdb.set_trace()
-    emission = interpn(coords, line, arr, method='linear', bounds_error=False, fill_value=None)
-    return emission
-    #else:
-    #    raise RuntimeError("This data file format is not supported.")
+    ## Convert values from user into log space to match table
+    ##dens = np.log10(density)
+    ##temp = np.log10(temperature)
+    ##metals = np.log10(metallicity)
+    #arr = np.array([data[(ftype, 'log_nH')], data[(ftype, 'log_T')], data[(ftype, 'log_Z')]]).T
+    #emission = interpn(coords, line, arr, method='linear', bounds_error=False, fill_value=None)
+    #return emission
+    else:
+        raise RuntimeError("This data file format is not supported.")
 
     ##line_emission = np.power(10, interp(data))
+    #return interp(line_emission)
 
-    #return interp(data)
+    return interp(data)
 
 def _add_field(ds, name, function, units):
     """
