@@ -281,3 +281,4 @@ if on_rtd:
 else:
     ion_table_dir, ion_table_file = parse_config()
     ion_table_filepath = os.path.join(ion_table_dir, ion_table_file)
+    emissivity_table_filepath = os.path.join(ion_table_dir, 'cloudy_emission_3D.h5')
