@@ -68,11 +68,12 @@ class EmissionTable(object):
         """
 
         input = h5py.File(self.filename, 'r')
-        self.emission_spectra = input['emission'][()]
+        self.emission_spectra = np.log10(input['emission'][()])
         #self.emission_spectra[self.ion_fraction < np.log10(fraction_zero_point)] = zero_out_value
         self.parameters.append(input['emission'].attrs['density_index'])
         self.parameters.append(input['emission'].attrs['temperature_index'])
         self.parameters.append(input['emission'].attrs['metallicity_index'])
+        #import pdb; pdb.set_trace()
         input.close()
 
 def _log_nH(field, data):
@@ -125,6 +126,11 @@ def _log_Z(field, data):
     dataset's metallicity  values into the same format for indexing the table
     """
     return np.log10(data["gas", "metallicity"].to('Zsun'))
+
+def _emission_volume(field, data):
+    """
+    """
+    return data["gas", "line"] * data["gas", "mass"] / data["gas", "density"]
 
 def add_emission_spectrum(ds, ftype="gas",
                           emission_table=None):
@@ -182,6 +188,10 @@ def add_emission_spectrum(ds, ftype="gas",
 
     _add_field(ds, ("gas", field), function=_emission_line_field, units="")
 
+    # multiply by volume field
+    #_add_field(ds, ("gas", "line_volume"), function=_emission_volume, units="ergs/s")
+    _add_field(ds, ("gas", "line_volume"), function=_emission_volume, units="cm**3")
+
 def _emission_line_field(field, data):
     """
     Creates the function for a derived field for following the ion_fraction
@@ -197,7 +207,8 @@ def _emission_line_field(field, data):
     n_parameters = len(table_store[field_name]['parameters'])
 
     if n_parameters == 3:
-        line = table_store[field_name]['emission_spectra'][:,:,:,213] # 0 is the index of the desired line in spectra
+        #line = table_store[field_name]['emission_spectra'][:,:,:,213] # 213 = lyA
+        line = table_store[field_name]['emission_spectra'][:,:,:,163] # 163 = OVI
         #line = table_store[field_name]['emission_spectra']
         n_param = table_store[field_name]['parameters'][0]
         t_param = table_store[field_name]['parameters'][1]
@@ -211,7 +222,7 @@ def _emission_line_field(field, data):
                                             truncate=True)
 
     # x,y,z coordinates for all ion_fractions from table
-    coords = (n_param, t_param, Z_param)
+    #coords = (n_param, t_param, Z_param)
 
     ## Convert values from user into log space to match table
     ##dens = np.log10(density)
@@ -223,10 +234,12 @@ def _emission_line_field(field, data):
     else:
         raise RuntimeError("This data file format is not supported.")
 
-    ##line_emission = np.power(10, interp(data))
-    #return interp(line_emission)
+    # line emission is in erg s**-1 cm**-3
+    line_emission = np.power(10, interp(data))
 
-    return interp(data)
+    return line_emission
+
+    #return interp(data)
 
 def _add_field(ds, name, function, units):
     """
