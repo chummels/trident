@@ -120,10 +120,95 @@ def _log_Z(field, data):
 def _emission_volume(field, data):
     """
     """
-    return data["gas", "line"] * data["gas", "mass"] / data["gas", "density"]
+    return data["gas", "Si_II_1260.42A"] * data["gas", "mass"] / data["gas", "density"]
 
+def add_emission_line(ds, line, ftype="gas", emissivity_table=None):
+    """
+    """
+    if emissivity_table is None:
+        emissivity_table = emissivity_table_filepath
 
-def _add_field(ds, name, function, units, sampling_type):
+    if ("gas", "log_nH") not in ds.derived_field_list:
+        _add_field(ds, ("gas", "log_nH"), function=_log_nH, units="")
+
+    if ("gas", "log_T") not in ds.derived_field_list:
+        _add_field(ds, ("gas", "log_T"), function=_log_T, units="")
+
+    if ("gas", "log_Z") not in ds.derived_field_list:
+        _add_field(ds, ("gas", "log_Z"), function=_log_Z, units="")
+
+    linelist = line.split()
+    field = "%s_%s_%s" % (linelist[0], linelist[1], linelist[2])
+
+    if field not in table_store:
+        emissivityTable = LineEmissivityTable(emissivity_table, line)
+        table_store[field] = {'emissivity': copy.deepcopy(emissivityTable.line_emissivity),
+                              'parameters': copy.deepcopy(emissivityTable.parameters)}
+        del emissivityTable
+
+    # change back from "line" to fiela 
+    #_add_field(ds, ("gas", "line"), function=_emission_line_field, units="")
+    _add_field(ds, ("gas", field), function=_emission_line_field, units="")
+
+    # multiply by volume field
+    #_add_field(ds, ("gas", "line_volume"), function=_emission_volume, units="ergs/s")
+    _add_field(ds, ("gas", "line_volume"), function=_emission_volume, units="cm**3")
+
+def _emission_line_field(field, data):
+    """
+    Creates the function for a derived field for following the ion_fraction
+    of an ion over a dataset by plugging in the density, temperature,
+    metallicity and redshift of the output into the ionization table.
+    """
+    if isinstance(field.name, tuple):
+        ftype = field.name[0]
+        field_name = field.name[1]
+    else:
+        ftype = "gas"
+        field_name = field.name
+    n_parameters = len(table_store[field_name]['parameters'])
+
+    if n_parameters == 3:
+        #line = table_store[field_name]['emission_spectra'][:,:,:,213] # 213 = lyA
+        line = table_store[field_name]['emissivity']
+        #line = table_store[field_name]['emission_spectra']
+
+        n_param = table_store[field_name]['parameters'][0]
+        t_param = table_store[field_name]['parameters'][1]
+        Z_param = table_store[field_name]['parameters'][2]
+        #import pdb; pdb.set_trace()
+        #cbh = [n_param.astype("=f8"), t_param.astype("=f8"), Z_param.astype("=f8")]
+        cbh = [n_param, t_param, Z_param]
+
+        interp = TrilinearFieldInterpolator(line, cbh,
+                                            [(ftype, "log_nH"),
+                                             (ftype, "log_T"),
+                                             (ftype, "log_Z")],
+                                            truncate=True)
+
+    # x,y,z coordinates for all ion_fractions from table
+    #coords = (n_param, t_param, Z_param)
+
+    ## Convert values from user into log space to match table
+    ##dens = np.log10(density)
+    ##temp = np.log10(temperature)
+    ##metals = np.log10(metallicity)
+    #arr = np.array([data[(ftype, 'log_nH')], data[(ftype, 'log_T')], data[(ftype, 'log_Z')]]).T
+    #emission = interpn(coords, line, arr, method='linear', bounds_error=False, fill_value=None)
+    #return emission
+    else:
+        raise RuntimeError("This data file format is not supported.")
+
+    # line emission is in erg s**-1 cm**-3
+    line_emission = np.power(10, interp(data))
+    line_emission = np.nan_to_num(line_emission)
+    line_emission = np.clip(line_emission, 1e-60, None)
+
+    return line_emission
+
+    #return interp(data)
+
+def _add_field(ds, name, function, units):
     """
     Private function for adding fields that wraps the yt add_field function.
     First it checks to see if field exists and if so, it does not attempt to
@@ -135,8 +220,7 @@ def _add_field(ds, name, function, units, sampling_type):
         mylog.warning("Field %s already exists. Not clobbering." % str(name))
         return
     else:
-        return ds.add_field(name, function=function, units=units,
-                            sampling_type=sampling_type)
+        return ds.add_field(name, function=function, units=units, sampling_type='local')
 
 
 def calculate_line_emissivity(line, density, temperature, metallicity, emissivity_table=None):

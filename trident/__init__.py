@@ -77,7 +77,8 @@ from trident.emission_spectrum import \
     calculate_emission_spectrum
 
 from trident.line_emissivity import \
-    calculate_line_emissivity
+    calculate_line_emissivity, \
+    add_emission_line
 
 # Making installation path global
 path = trident_path()
